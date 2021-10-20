@@ -75,7 +75,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
     Handler handler = new Handler();
     private final int TIME = 30000;
     private File jsonFile;
-    public static String responseServer="";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -237,54 +236,41 @@ public class ListWifiScannerActivity extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(Void... voids) {
-            OutputStream os = null;
-            InputStream is = null;
-            HttpURLConnection conn = null;
             try {
+                //URL server y contenido fichero JSON creado
+                StringBuilder filetoUpload = readJsonFile(jsonFile.toString());
                 URL url = new URL("http://"+server_ip+url_insert_waps);
-                JSONObject jsonObject = new JSONObject();
-                jsonObject.put("ssid", "MIWIFI_Hk2A");
-                jsonObject.put("bssid", "64:13:6c:25:a9:cc");
-                jsonObject.put("rssi", "-87");
-                jsonObject.put("timescan", "18:46:45 08-10-2021");
-                String message = jsonObject.toString();
-                Log.d("OBJ", message);
+                //Establecimiento conexión con el server
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setReadTimeout(10000);
+                connection.setConnectTimeout(15000);
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                connection.setDoInput(true);
+                // connection.setFixedLengthStreamingMode(filetoUpload.length());
+                //Solicitud HTTP
+                connection.setRequestProperty("Accept-Charset","UTF-8");
+                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setReadTimeout(10000);
-                conn.setConnectTimeout(15000);
-                conn.setRequestMethod("POST");
-                conn.setDoInput(true);
-                conn.setDoOutput(true);
-                conn.setFixedLengthStreamingMode(message.getBytes().length);
-
-                conn.setRequestProperty("Content-Type","application/json;charset=utf-8");
-                conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
-
-                conn.connect();
-
-                os = new BufferedOutputStream(conn.getOutputStream());
-                os.write(message.getBytes());
-                //clean up
-                os.flush();
-
-                is = conn.getInputStream();
-
+                //Abrir conexión con el server
+                connection.connect();
+                //Envio de contenido del fichero
+                OutputStream outputStream = connection.getOutputStream();
+                OutputStreamWriter writer = new OutputStreamWriter(outputStream);
+                Log.d("Ruta", filetoUpload.toString());
+                  writer.write(URLEncoder.encode(filetoUpload.toString(), "UTF-8"));
+                 writer.flush();
                 //Respuesta del servidor
-                int serverResponseCode = conn.getResponseCode();
-                String serverResponseMessage = conn.getResponseMessage();
-                Log.d("HTTP response is: ", serverResponseCode + " - " + serverResponseMessage);
+                int serverResponseCode = connection.getResponseCode();
+                String serverResponseMessage = connection.getResponseMessage();
+                Log.i("HTTP response is: ", serverResponseCode + " - " + serverResponseMessage);
 
-            } catch (IOException e){e.printStackTrace();
-            } catch (JSONException e){e.printStackTrace();
-            } finally {
-                //clean up
-                try {
-                    os.close();
-                    is.close();
-                } catch (IOException e){e.printStackTrace();}
-                conn.disconnect();
-            }
+                //Cerrar flujos y conexion
+                writer.close();
+
+                connection.disconnect();
+
+            } catch (Exception e){e.printStackTrace(); }
             return null;
         }
 
