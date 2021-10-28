@@ -8,8 +8,9 @@
     <string name="button_scanerWifi">Escanear</string>
     <string name="button_location">Localizar posición actual</string>
 
-    <string name="current_ip">192.168.1.34:8080</string>
+    <string name="current_ip">192.168.1.41:8080</string>
     <string name="get_waps">/tfg/get_actual_time_waps.php</string>
+    <string name="get_coords">/tfg/getCoordinates.php</string>
     <string name="insert_waps">/tfg/readJson.php</string>
     <string name="title_activity_maps">Map</string>
 </resources>

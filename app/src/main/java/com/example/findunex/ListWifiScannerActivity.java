@@ -10,7 +10,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
+
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
@@ -22,28 +22,21 @@ import android.widget.Toast;
 
 import com.example.findunex.objects.WAPData;
 import com.example.findunex.room_db.FindUNEXdatabase;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
-import org.apache.http.params.HttpParams;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,11 +59,8 @@ public class ListWifiScannerActivity extends AppCompatActivity {
     private String actualdateTimestamp;
 
     String server_ip = "", url_insert_waps = "";
-    String response = "";
 
     private ArrayList<WAPData> wapList;
-   // private JSONArray resultsJSON;
-  //  private JSONObject obj;
 
     Handler handler = new Handler();
     private final int TIME = 30000;
@@ -150,9 +140,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
 
             wapList = new ArrayList<>();
 
-          //  resultsJSON = new JSONArray();
-          //  obj = new JSONObject();
-
             for (ScanResult scanResult : wifiData) {
                 WAP_SSID = scanResult.SSID;
                 WAP_BSSID = scanResult.BSSID;
@@ -170,31 +157,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
                 wap.setTimescan(actualdateTimestamp);
 
                 wapList.add(wap);
-                Log.d("Lista", wapList.size()+"");
-
-               /*Gson gson = new Gson();
-                String jsonObject = gson.toJson(wap);
-                JsonObject convertObject = new Gson().fromJson(jsonObject, JsonObject.class);
-                Log.d("JsonObject", convertObject+"");*/
-
-                //resultsJSON.put(convertObject);
-               /* Log.d("JsonArray", resultsJSON+"");
-                try {
-                    obj.put("wap", resultsJSON);
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-
-                Log.d("JsonArray", obj+"");*/
-
-                /*AppExecutors.getInstance().diskIO().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        FindUNEXdatabase wapdatabase = FindUNEXdatabase.getInstance(getApplicationContext());
-                        long id_wap = wapdatabase.getDao().insert(wap);
-                        wap.setId(id_wap);
-                    }
-                });*/
 
                 results.add(WAP_SSID + "("+ WAP_BSSID +")"+ ": " + WAP_RSSI + " dBm" + " - " +actualdateTimestamp);
 
@@ -202,24 +164,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
             }
 
             writeJSONFile(wapList);
-           // String strJSON = resultsJSON.toString();
-
-           /* Log.d("Repu", strJSON);
-            try {
-                Log.d("Fichero", "Escribe2");
-               // writer.write(resultsJSON.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                Log.d("Fichero", "Escribe3");
-                writer.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            Log.d("Fichero", jsonFile.getAbsolutePath());*/
-            //Envío de los datos a FindUnexdb
             new InsertSyncWAP().execute();
 
         }
@@ -237,48 +181,42 @@ public class ListWifiScannerActivity extends AppCompatActivity {
         @Override
         protected Void doInBackground(Void... voids) {
             try {
-                //URL server y contenido fichero JSON creado
-                StringBuilder filetoUpload = readJsonFile(jsonFile.toString());
+                HttpURLConnection urlCon;
+                DataOutputStream printout;
+                DataInputStream input;
                 URL url = new URL("http://"+server_ip+url_insert_waps);
-                //Establecimiento conexión con el server
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setReadTimeout(10000);
-                connection.setConnectTimeout(15000);
-                connection.setRequestMethod("POST");
-                connection.setDoOutput(true);
-                connection.setDoInput(true);
-                // connection.setFixedLengthStreamingMode(filetoUpload.length());
-                //Solicitud HTTP
-                connection.setRequestProperty("Accept-Charset","UTF-8");
-                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 
-                //Abrir conexión con el server
-                connection.connect();
-                //Envio de contenido del fichero
-                OutputStream outputStream = connection.getOutputStream();
-                OutputStreamWriter writer = new OutputStreamWriter(outputStream);
-                Log.d("Ruta", filetoUpload.toString());
-                  writer.write(URLEncoder.encode(filetoUpload.toString(), "UTF-8"));
-                 writer.flush();
-                //Respuesta del servidor
-                int serverResponseCode = connection.getResponseCode();
-                String serverResponseMessage = connection.getResponseMessage();
-                Log.i("HTTP response is: ", serverResponseCode + " - " + serverResponseMessage);
+                urlCon = (HttpURLConnection) url.openConnection();
+                urlCon.setDoInput(true);
+                urlCon.setDoOutput(true);
+                urlCon.setUseCaches(false);
+                urlCon.setRequestProperty("Connection", "keep-alive");
+                urlCon.setRequestProperty("Accept-Encoding", "gzip, deflate, br");
+                urlCon.setRequestProperty("Accept", "*/*");
+                urlCon.setRequestProperty("User-Agent", "PostmanRuntime/7.28.4");
+                urlCon.setRequestProperty("Content-Type", "application/json");
+                urlCon.connect();
 
-                //Cerrar flujos y conexion
+                OutputStream os = urlCon.getOutputStream();
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+
+                StringBuilder filetoUpload = readJsonFile(jsonFile.toString());
+                writer.write(filetoUpload.toString());
+                writer.flush();
                 writer.close();
 
-                connection.disconnect();
+                int response = urlCon.getResponseCode();
+                StringBuilder result = new StringBuilder();
 
+                if(response == HttpURLConnection.HTTP_OK){
+                    String line;
+                    BufferedReader br = new BufferedReader(new InputStreamReader(urlCon.getInputStream()));
+                    while ((line=br.readLine()) != null){
+                        result.append(line);
+                    }
+                }
             } catch (Exception e){e.printStackTrace(); }
             return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
-            Log.d("response=",response+"");
-            Toast.makeText(getApplicationContext(), "WAP insertado", Toast.LENGTH_SHORT).show();
         }
     }
 
