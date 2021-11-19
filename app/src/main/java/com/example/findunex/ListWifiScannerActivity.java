@@ -91,7 +91,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, results);
         listWifi.setAdapter(adapter);
         WiFiScan();
-
     }
 
     @Override
@@ -182,8 +181,6 @@ public class ListWifiScannerActivity extends AppCompatActivity {
         protected Void doInBackground(Void... voids) {
             try {
                 HttpURLConnection urlCon;
-                DataOutputStream printout;
-                DataInputStream input;
                 URL url = new URL("http://"+server_ip+url_insert_waps);
 
                 urlCon = (HttpURLConnection) url.openConnection();
@@ -196,6 +193,7 @@ public class ListWifiScannerActivity extends AppCompatActivity {
                 urlCon.setRequestProperty("User-Agent", "PostmanRuntime/7.28.4");
                 urlCon.setRequestProperty("Content-Type", "application/json");
                 urlCon.connect();
+
 
                 OutputStream os = urlCon.getOutputStream();
                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
@@ -223,10 +221,8 @@ public class ListWifiScannerActivity extends AppCompatActivity {
     public void writeJSONFile(ArrayList<WAPData> listwaps){
         File rootFolder = this.getExternalFilesDir(null);
         jsonFile = new File(rootFolder, "waps.json");
-        Log.d("Fichero", jsonFile.getAbsolutePath());
         FileWriter writer = null;
         try {
-            Log.d("Fichero", "Escribe");
             writer = new FileWriter(jsonFile);
             writer.write("[\n");
 
@@ -241,10 +237,8 @@ public class ListWifiScannerActivity extends AppCompatActivity {
                 } else {
                     writer.write("},\n");
                 }
-                Log.d("Fichero", "Escribe2");
             }
             writer.write("]");
-            Log.d("Fichero", "Escribe3");
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();

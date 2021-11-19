@@ -1,3 +1,4 @@
+
 package com.example.findunex;
 
 import androidx.annotation.RawRes;
@@ -11,7 +12,9 @@ import android.graphics.Color;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdate;
@@ -40,6 +43,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
 
+    String server_ip = "", url_get_positions = "";
+    public static String jsonPos=""; // JSON dado por el server
+    JSONObject WapJObject = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,6 +55,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
     }
 
     /**
@@ -82,8 +90,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .build();                   // Creates a CameraPosition from the builder
             mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
 
-            addHeatMap();
-
+            new PositionsSave().execute();
         }
 
         /*mMap = googleMap;
@@ -102,10 +109,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         List<LatLng> latLngs = null;
         Context ctx;
 
-        // Get the data: latitude/longitude positions of police stations.
+        // Get the data: latitude/longitude positions
         try {
-            latLngs = readItems(R.raw.localizaciones);
-        } catch (JSONException e) {
+            latLngs = readItems(jsonPos);
+        } catch (Exception e) {
             Toast.makeText(this, "Problem reading list of locations.", Toast.LENGTH_LONG).show();
         }
 
@@ -129,7 +136,53 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         TileOverlay overlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(provider));
     }
 
-    private List<LatLng> readItems(@RawRes int resource) throws JSONException {
+    class PositionsSave extends AsyncTask<Void,Void,Void> {
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            server_ip = getResources().getString(R.string.current_ip);
+            url_get_positions = getResources().getString(R.string.get_positions);
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                String url = "http://"+server_ip+url_get_positions;
+                Log.d("URL --> ", url+"");
+                HttpHandler httpHandler = new HttpHandler();
+                jsonPos = httpHandler.makeServiceCall(url);
+
+            } catch (Exception e){e.printStackTrace(); Log.e("error", e+"");}
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            Log.d("JSON", jsonPos.toString());
+            addHeatMap();
+        }
+    }
+
+    private List<LatLng> readItems(String posJson){
+        List<LatLng> result = new ArrayList<>();
+        try {
+            WapJObject = new JSONObject(posJson);
+            JSONArray jsonArray = WapJObject.getJSONArray("POS");
+
+            if(jsonArray.length() > 0){
+                for(int i=0; i < jsonArray.length(); i++){
+                   double lat = jsonArray.getJSONObject(i).getDouble("latitud");
+                   double lon = jsonArray.getJSONObject(i).getDouble("longitud");
+                   result.add(new LatLng(lat, lon));
+                    Log.d("Pos", result.get(i).toString());
+                }
+            }
+        } catch (Exception e){e.printStackTrace();}
+        return result;
+    }
+
+    /*private List<LatLng> readItems(@RawRes int resource) throws JSONException {
         List<LatLng> result = new ArrayList<>();
         InputStream inputStream = this.getResources().openRawResource(resource);
         String json = new Scanner(inputStream).useDelimiter("\\A").next();
@@ -139,9 +192,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double lat = object.getDouble("lat");
             double lng = object.getDouble("lon");
             result.add(new LatLng(lat, lng));
+            Log.d("Pos", result.get(i).toString());
         }
         return result;
-    }
+    }*/
 
 
 }
